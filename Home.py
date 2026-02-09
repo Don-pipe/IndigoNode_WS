@@ -17,7 +17,16 @@ def _str(val):
         return ""
     return str(val).strip()
 
-st.set_page_config(page_title="IndigoNode", page_icon="🏠")
+st.set_page_config(page_title="IndigoNode", page_icon="🏠", layout="wide")
+st.markdown("""
+<style>
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 st.title("IndigoNode – Web Scraping")
 
 init_db_once()

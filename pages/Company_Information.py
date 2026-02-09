@@ -18,7 +18,16 @@ def _str(val):
     return str(val).strip()
 
 
-st.set_page_config(page_title="Company Information", page_icon="🏢")
+st.set_page_config(page_title="Company Information", page_icon="🏢", layout="wide")
+st.markdown("""
+<style>
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 st.title("Company Information")
 
 st.caption("Search for a company and edit its information below.")
@@ -99,9 +108,9 @@ else:
                 source_url = st.text_input("Source URL", value=_str(row.get("source_url")), key="ci_url")
                 btn_col1, btn_col2, _ = st.columns([1, 1, 6])
                 with btn_col1:
-                    save_clicked = st.form_submit_button("✅")
+                    save_clicked = st.form_submit_button("Save")
                 with btn_col2:
-                    delete_clicked = st.form_submit_button("❌")
+                    delete_clicked = st.form_submit_button("Delete")
 
             if save_clicked:
                 if not company_name or not company_name.strip():

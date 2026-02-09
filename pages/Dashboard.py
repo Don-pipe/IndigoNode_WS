@@ -9,7 +9,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app_cache import get_cached_companies
 
-st.set_page_config(page_title="Dashboard", page_icon="📊")
+st.set_page_config(page_title="Dashboard", page_icon="📊", layout="wide")
+st.markdown("""
+<style>
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 st.title("Dashboard")
 
 df = get_cached_companies()
