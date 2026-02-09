@@ -8,10 +8,27 @@ from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from db.database import get_connection, delete_company
+from db.database import delete_company, update_company
 from app_cache import get_cached_companies, clear_companies_cache
 
-st.set_page_config(page_title="Database", page_icon="🗄️")
+def _str(val):
+    """Coerce value to str for DB; NaN/None -> ''."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ""
+    return str(val).strip()
+
+
+st.set_page_config(page_title="Database", page_icon="🗄️", layout="wide")
+# Use full width for the data grid
+st.markdown("""
+<style>
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 st.title("Database")
 
 df = get_cached_companies()
@@ -31,15 +48,50 @@ if df is not None and not df.empty:
         if email_filter:
             mask &= df["contact_email"].fillna("").astype(str).str.contains(email_filter, case=False, regex=False)
         filtered_df = df.loc[mask]
-        if not filtered_df.empty:
-            st.dataframe(filtered_df, use_container_width=True)
-            rows_for_delete = filtered_df.to_dict("records")
-        else:
+        if filtered_df.empty:
             st.info("No matches.")
+            display_df = pd.DataFrame()
             rows_for_delete = []
+        else:
+            display_df = filtered_df.copy()
+            rows_for_delete = filtered_df.to_dict("records")
     else:
-        st.dataframe(df, use_container_width=True)
+        display_df = df.copy()
         rows_for_delete = df.to_dict("records") if "id" in df.columns else []
+
+    # Editable grid (id and scraped_at read-only)
+    if not display_df.empty:
+        st.subheader("Edit data")
+        st.caption("Edit cells in the grid, then click **Save changes to database**.")
+        column_config = {}
+        if "id" in display_df.columns:
+            column_config["id"] = st.column_config.NumberColumn("ID", disabled=True)
+        if "scraped_at" in display_df.columns:
+            column_config["scraped_at"] = st.column_config.TextColumn("Scraped at", disabled=True)
+        edited_df = st.data_editor(
+            display_df,
+            use_container_width=True,
+            num_rows="fixed",
+            column_config=column_config or None,
+            key="database_editor",
+        )
+        if st.button("Save changes to database"):
+            for _, row in edited_df.iterrows():
+                rid = row.get("id")
+                if rid is not None and pd.notna(rid):
+                    update_company(
+                        company_id=int(rid),
+                        company_name=_str(row.get("company_name")),
+                        description=_str(row.get("description")),
+                        contact_email=_str(row.get("contact_email")),
+                        contact_phone=_str(row.get("contact_phone")),
+                        contact_address=_str(row.get("contact_address")),
+                        has_contact_form=_str(row.get("has_contact_form")) or "No",
+                        source_url=_str(row.get("source_url")),
+                    )
+            clear_companies_cache()
+            st.success("Changes saved.")
+            st.rerun()
 
     # Delete rows section
     if rows_for_delete:

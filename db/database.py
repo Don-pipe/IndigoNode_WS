@@ -64,6 +64,20 @@ def delete_company(company_id: int) -> None:
     conn.close()
 
 
+def update_company(company_id: int, company_name: str, description: str, contact_email: str,
+                  contact_phone: str, contact_address: str, has_contact_form: str, source_url: str) -> None:
+    """Update one company record by id (contact information only; scraped_at unchanged)."""
+    conn = get_connection()
+    conn.execute(
+        """UPDATE companies SET company_name=?, description=?, contact_email=?, contact_phone=?,
+           contact_address=?, has_contact_form=?, source_url=? WHERE id=?""",
+        (company_name or "", description or "", contact_email or "", contact_phone or "",
+         contact_address or "", has_contact_form or "No", source_url or "", company_id),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_all_companies() -> pd.DataFrame | None:
     """Return all companies as a DataFrame. Caller must ensure init_db() has run (e.g. via app_cache.init_db_once())."""
     conn = get_connection()
