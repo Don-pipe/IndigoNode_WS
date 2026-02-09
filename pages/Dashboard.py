@@ -1,8 +1,9 @@
 """
-Dashboard page: Data visualization and insights.
+Dashboard page: Contact data overview.
 """
 import streamlit as st
 import sys
+import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -15,19 +16,17 @@ init_db()
 df = get_all_companies()
 
 if df is not None and not df.empty:
-    # Total companies
     st.metric("Total companies", len(df))
 
-    # Payout distribution (if we have payout data)
-    if "referral_payout" in df.columns and df["referral_payout"].notna().any():
-        payouts = df["referral_payout"].dropna()
-        if len(payouts) > 0:
-            st.subheader("Referral payouts (sample)")
-            st.bar_chart(payouts.value_counts().head(15))
-
-    # Referral program yes/no
-    if "referral_program" in df.columns:
-        st.subheader("Referral program")
-        st.bar_chart(df["referral_program"].value_counts())
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        with_email = (df["contact_email"].fillna("").astype(str).str.strip() != "").sum() if "contact_email" in df.columns else 0
+        st.metric("With email", int(with_email))
+    with col2:
+        with_phone = (df["contact_phone"].fillna("").astype(str).str.strip() != "").sum() if "contact_phone" in df.columns else 0
+        st.metric("With phone", int(with_phone))
+    with col3:
+        with_address = (df["contact_address"].fillna("").astype(str).str.strip() != "").sum() if "contact_address" in df.columns else 0
+        st.metric("With address", int(with_address))
 else:
     st.info("No data yet. Scrape URLs from the Home page to see the dashboard.")

@@ -1,5 +1,5 @@
 """
-SQLite connection and helpers for the companies table.
+SQLite connection and helpers for the companies table (contact information only).
 """
 import sqlite3
 from pathlib import Path
@@ -18,39 +18,48 @@ def get_connection():
 
 
 def init_db():
-    """Create the companies table if it does not exist. Add description column if missing."""
+    """Create the companies table if it does not exist. Schema: contact info only."""
     conn = get_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS companies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company_name TEXT,
             description TEXT,
-            referral_program TEXT,
-            referral_payout TEXT,
-            outsourcing_type TEXT,
+            contact_email TEXT,
+            contact_phone TEXT,
+            contact_address TEXT,
+            has_contact_form TEXT,
             source_url TEXT,
             scraped_at TIMESTAMP
         )
     """)
-    # Migration: add description column for existing DBs
     try:
-        conn.execute("ALTER TABLE companies ADD COLUMN description TEXT")
+        conn.execute("ALTER TABLE companies ADD COLUMN has_contact_form TEXT")
         conn.commit()
     except sqlite3.OperationalError:
-        pass  # Column already exists
+        pass
     conn.commit()
     conn.close()
 
 
-def insert_company(company_name: str, description: str, referral_program: str, referral_payout: str,
-                   outsourcing_type: str, source_url: str) -> None:
-    """Insert one company record."""
+def insert_company(company_name: str, description: str, contact_email: str, contact_phone: str,
+                   contact_address: str, has_contact_form: str, source_url: str) -> None:
+    """Insert one company record (contact information)."""
     conn = get_connection()
     conn.execute(
-        """INSERT INTO companies (company_name, description, referral_program, referral_payout, outsourcing_type, source_url, scraped_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (company_name, description or "", referral_program, referral_payout, outsourcing_type, source_url, datetime.utcnow().isoformat()),
+        """INSERT INTO companies (company_name, description, contact_email, contact_phone, contact_address, has_contact_form, source_url, scraped_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (company_name, description or "", contact_email or "", contact_phone or "", contact_address or "",
+         has_contact_form or "No", source_url, datetime.utcnow().isoformat()),
     )
+    conn.commit()
+    conn.close()
+
+
+def delete_company(company_id: int) -> None:
+    """Delete one company record by id."""
+    conn = get_connection()
+    conn.execute("DELETE FROM companies WHERE id = ?", (company_id,))
     conn.commit()
     conn.close()
 
