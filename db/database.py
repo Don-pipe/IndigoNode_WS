@@ -65,8 +65,7 @@ def delete_company(company_id: int) -> None:
 
 
 def get_all_companies() -> pd.DataFrame | None:
-    """Return all companies as a DataFrame."""
-    init_db()
+    """Return all companies as a DataFrame. Caller must ensure init_db() has run (e.g. via app_cache.init_db_once())."""
     conn = get_connection()
     try:
         df = pd.read_sql_query("SELECT * FROM companies ORDER BY scraped_at DESC", conn)

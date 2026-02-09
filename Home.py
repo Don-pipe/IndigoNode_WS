@@ -7,8 +7,8 @@ import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from functions.scraper import scrape_url, discover_site_urls, scrape_urls
-from db.database import init_db, insert_company
+from db.database import insert_company
+from app_cache import init_db_once, clear_companies_cache
 
 
 def _str(val):
@@ -20,7 +20,7 @@ def _str(val):
 st.set_page_config(page_title="IndigoNode", page_icon="🏠")
 st.title("IndigoNode – Web Scraping")
 
-init_db()
+init_db_once()
 
 url = st.text_input("URL", placeholder="https://example.com or https://example.com/page")
 
@@ -35,6 +35,7 @@ if "Discover" in mode:
             st.error("Please enter a valid URL.")
         else:
             try:
+                from functions.scraper import discover_site_urls
                 with st.spinner("Discovering pages on this site…"):
                     discovered = discover_site_urls(url.strip(), max_pages=max_pages)
                 st.session_state["discovered_urls"] = discovered
@@ -68,6 +69,7 @@ if "Discover" in mode:
             if not selected:
                 st.warning("Select at least one page.")
             else:
+                from functions.scraper import scrape_urls
                 with st.spinner(f"Scraping {len(selected)} page(s)…"):
                     results = scrape_urls(selected)
                 st.session_state["last_scraped_list"] = results
@@ -98,6 +100,7 @@ if "Discover" in mode:
                     has_contact_form=_str(row_vals[5]) or "No",
                     source_url=_str(row_vals[6]),
                 )
+            clear_companies_cache()
             st.success(f"Saved {len(edited_df.columns)} record(s) to database.")
             del st.session_state["last_scraped_list"]
             if "discovered_urls" in st.session_state:
@@ -127,6 +130,7 @@ elif "Manual" in mode:
                 has_contact_form=manual_has_form,
                 source_url=manual_url.strip() if manual_url else "",
             )
+            clear_companies_cache()
             st.session_state["manual_save_success"] = True
     if st.session_state.get("manual_save_success"):
         st.success("We were able to save successfully.")
@@ -137,6 +141,7 @@ else:
             st.error("Please enter a valid URL.")
         else:
             try:
+                from functions.scraper import scrape_url
                 data = scrape_url(url.strip())
                 st.session_state["last_scraped"] = data
                 st.success("Scraping finished. Review the data below.")
@@ -166,6 +171,7 @@ else:
                 has_contact_form=has_contact_form or "No",
                 source_url=(source_url or "").strip(),
             )
+            clear_companies_cache()
             st.success("Saved to database.")
             del st.session_state["last_scraped"]
             st.rerun()

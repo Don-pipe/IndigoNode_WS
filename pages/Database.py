@@ -3,18 +3,18 @@ Database page: View & query SQLite data.
 """
 import streamlit as st
 import sys
+import pandas as pd
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from db.database import get_connection, get_all_companies, init_db, delete_company
+from db.database import get_connection, delete_company
+from app_cache import get_cached_companies, clear_companies_cache
 
 st.set_page_config(page_title="Database", page_icon="🗄️")
 st.title("Database")
 
-init_db()
-
-df = get_all_companies()
+df = get_cached_companies()
 if df is not None and not df.empty:
     # Filter at the top
     st.subheader("Filter")
@@ -25,23 +25,15 @@ if df is not None and not df.empty:
         email_filter = st.text_input("Email contains", placeholder="e.g. @company.com")
 
     if company_filter or email_filter:
-        conn = get_connection()
-        query = "SELECT * FROM companies WHERE 1=1"
-        params = []
+        mask = pd.Series(True, index=df.index)
         if company_filter:
-            query += " AND company_name LIKE ?"
-            params.append(f"%{company_filter}%")
+            mask &= df["company_name"].fillna("").astype(str).str.contains(company_filter, case=False, regex=False)
         if email_filter:
-            query += " AND contact_email LIKE ?"
-            params.append(f"%{email_filter}%")
-        query += " ORDER BY scraped_at DESC"
-        filtered = conn.execute(query, params).fetchall()
-        conn.close()
-        if filtered:
-            import pandas as pd
-            display_df = pd.DataFrame([dict(r) for r in filtered])
-            st.dataframe(display_df, use_container_width=True)
-            rows_for_delete = list(filtered)
+            mask &= df["contact_email"].fillna("").astype(str).str.contains(email_filter, case=False, regex=False)
+        filtered_df = df.loc[mask]
+        if not filtered_df.empty:
+            st.dataframe(filtered_df, use_container_width=True)
+            rows_for_delete = filtered_df.to_dict("records")
         else:
             st.info("No matches.")
             rows_for_delete = []
@@ -59,6 +51,7 @@ if df is not None and not df.empty:
                 ids = [options[k] for k in to_delete]
                 for i in ids:
                     delete_company(i)
+                clear_companies_cache()
                 st.success(f"Deleted {len(ids)} row(s).")
                 st.rerun()
 else:

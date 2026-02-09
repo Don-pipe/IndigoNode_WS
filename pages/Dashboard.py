@@ -7,13 +7,12 @@ import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from db.database import get_all_companies, init_db
+from app_cache import get_cached_companies
 
 st.set_page_config(page_title="Dashboard", page_icon="📊")
 st.title("Dashboard")
 
-init_db()
-df = get_all_companies()
+df = get_cached_companies()
 
 if df is not None and not df.empty:
     st.metric("Total companies", len(df))
