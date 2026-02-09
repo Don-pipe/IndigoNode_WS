@@ -3,11 +3,19 @@ Home page: URL input and web scraping. Save to SQLite after confirmation.
 """
 import streamlit as st
 import sys
+import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from functions.scraper import scrape_url, discover_site_urls, scrape_urls
 from db.database import init_db, insert_company
+
+
+def _str(val):
+    """Coerce value to str for DB; NaN/None -> ''."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ""
+    return str(val).strip()
 
 st.set_page_config(page_title="IndigoNode", page_icon="🏠")
 st.title("IndigoNode – Web Scraping")
@@ -67,25 +75,34 @@ if "Discover" in mode:
 
     if "last_scraped_list" in st.session_state:
         results = st.session_state["last_scraped_list"]
-        st.subheader("Scraped data")
-        for i, data in enumerate(results):
-            with st.expander(f"{data.get('company_name', '?')} — {data.get('source_url', '')[:70]}{'…' if len(data.get('source_url', '')) > 70 else ''}"):
-                st.json(data)
+        st.subheader("Edit scraped data")
+        st.caption("Fields are shown as rows; each column is one record. Edit any cell, then click **Save all to Database**.")
+        cols = ["company_name", "description", "contact_email", "contact_phone", "contact_address", "has_contact_form", "source_url"]
+        row_labels = ["Company name", "Description", "Contact email", "Contact phone", "Contact address", "Has contact form", "Source URL"]
+        # Build table: rows = fields, columns = Record 1, Record 2, ...
+        data_by_field = [[_str(r.get(c)) for r in results] for c in cols]
+        df_vertical = pd.DataFrame(
+            {f"Record {i+1}": [data_by_field[j][i] for j in range(len(cols))] for i in range(len(results))},
+            index=row_labels,
+        )
+        edited_df = st.data_editor(df_vertical, use_container_width=True, num_rows="fixed", key="edit_scraped_list")
         if st.button("Save all to Database"):
-            for data in results:
+            for j, col in enumerate(edited_df.columns):
+                row_vals = [edited_df.iloc[i, j] for i in range(len(cols))]
                 insert_company(
-                    company_name=data["company_name"],
-                    description=data.get("description", ""),
-                    contact_email=data.get("contact_email", ""),
-                    contact_phone=data.get("contact_phone", ""),
-                    contact_address=data.get("contact_address", ""),
-                    has_contact_form=data.get("has_contact_form", "No"),
-                    source_url=data["source_url"],
+                    company_name=_str(row_vals[0]),
+                    description=_str(row_vals[1]),
+                    contact_email=_str(row_vals[2]),
+                    contact_phone=_str(row_vals[3]),
+                    contact_address=_str(row_vals[4]),
+                    has_contact_form=_str(row_vals[5]) or "No",
+                    source_url=_str(row_vals[6]),
                 )
-            st.success(f"Saved {len(results)} record(s) to database.")
+            st.success(f"Saved {len(edited_df.columns)} record(s) to database.")
             del st.session_state["last_scraped_list"]
             if "discovered_urls" in st.session_state:
                 del st.session_state["discovered_urls"]
+            st.rerun()
 elif "Manual" in mode:
     st.caption("Use this when the scraper can't access the page (blocked, login required, or you prefer to type it in).")
     with st.form("manual_entry_form"):
@@ -128,17 +145,27 @@ else:
 
     if "last_scraped" in st.session_state:
         data = st.session_state["last_scraped"]
-        st.subheader("Scraped data")
-        st.json(data)
-        if st.button("Save to Database"):
+        st.subheader("Edit scraped data")
+        st.caption("Edit any field below, then click **Save to Database**.")
+        with st.form("edit_single_form"):
+            company_name = st.text_input("Company name", value=data.get("company_name", ""))
+            description = st.text_input("Description", value=data.get("description", ""))
+            contact_email = st.text_input("Contact email", value=data.get("contact_email", ""))
+            contact_phone = st.text_input("Contact phone", value=data.get("contact_phone", ""))
+            contact_address = st.text_area("Contact address", value=data.get("contact_address", ""))
+            has_contact_form = st.selectbox("Has contact form", ["No", "Yes"], index=1 if (data.get("has_contact_form") or "").strip().lower() == "yes" else 0)
+            source_url = st.text_input("Source URL", value=data.get("source_url", ""))
+            submitted = st.form_submit_button("Save to Database")
+        if submitted:
             insert_company(
-                company_name=data["company_name"],
-                description=data.get("description", ""),
-                contact_email=data.get("contact_email", ""),
-                contact_phone=data.get("contact_phone", ""),
-                contact_address=data.get("contact_address", ""),
-                has_contact_form=data.get("has_contact_form", "No"),
-                source_url=data["source_url"],
+                company_name=(company_name or "").strip(),
+                description=(description or "").strip(),
+                contact_email=(contact_email or "").strip(),
+                contact_phone=(contact_phone or "").strip(),
+                contact_address=(contact_address or "").strip(),
+                has_contact_form=has_contact_form or "No",
+                source_url=(source_url or "").strip(),
             )
             st.success("Saved to database.")
             del st.session_state["last_scraped"]
+            st.rerun()
