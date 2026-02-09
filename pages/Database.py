@@ -42,8 +42,7 @@ if df is not None and not df.empty:
         conn.close()
         if filtered:
             import pandas as pd
-            cols = ["id", "company_name", "referral_program", "referral_payout", "outsourcing_type", "source_url", "scraped_at"]
-            st.dataframe(pd.DataFrame(filtered, columns=cols), use_container_width=True)
+            st.dataframe(pd.DataFrame([dict(r) for r in filtered]), use_container_width=True)
         else:
             st.info("No matches.")
 else:

@@ -35,6 +35,7 @@ if "last_scraped" in st.session_state:
     if st.button("Save to Database"):
         insert_company(
             company_name=data["company_name"],
+            description=data.get("description", ""),
             referral_program=data["referral_program"],
             referral_payout=data["referral_payout"],
             outsourcing_type=data["outsourcing_type"],

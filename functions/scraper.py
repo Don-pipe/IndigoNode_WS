@@ -1,6 +1,6 @@
 """
 Web scraping logic using BeautifulSoup.
-Extracts company name, referral program, payout, outsourcing type, and source URL.
+Extracts company name (from URL), description (page title), referral program, payout, outsourcing type, and source URL.
 """
 import re
 import requests
@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 def scrape_url(url: str) -> dict:
     """
     Scrape a URL and return structured data for the companies table.
-    Returns dict with: company_name, referral_program, referral_payout, outsourcing_type, source_url.
+    Returns dict with: company_name (from URL domain), description (page title), referral_program,
+    referral_payout, outsourcing_type, source_url.
     """
     try:
         resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0 (compatible; IndigoNode/1.0)"})
@@ -21,13 +22,14 @@ def scrape_url(url: str) -> dict:
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # Derive company name from domain if not found on page
-    domain = urlparse(url).netloc.replace("www.", "").split(".")[0]
-    company_name = domain.title()
+    # Company name = URL domain name (e.g. thevirtualgurus.com -> thevirtualgurus)
+    netloc = urlparse(url).netloc.replace("www.", "")
+    company_name = netloc.split(".")[0] if netloc else ""
 
-    # Try to get title as company name
+    # Description = page title (e.g. "Introducing Virtual Gurus' All-New Referral Program – Virtual Gurus")
+    description = ""
     if soup.title and soup.title.string:
-        company_name = soup.title.string.strip()[:200]
+        description = soup.title.string.strip()[:500]
 
     # Look for referral / payout / outsourcing keywords in text
     text = soup.get_text(separator=" ", strip=True).lower()
@@ -50,7 +52,8 @@ def scrape_url(url: str) -> dict:
             break
 
     return {
-        "company_name": company_name or domain.title(),
+        "company_name": company_name or "unknown",
+        "description": description,
         "referral_program": referral_program,
         "referral_payout": referral_payout or "N/A",
         "outsourcing_type": outsourcing_type or "N/A",
