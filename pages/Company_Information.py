@@ -36,9 +36,10 @@ st.caption("Search for a company and edit its information below.")
 if st.session_state.get("company_info_save_success"):
     st.success("The database change has been completed successfully.")
     del st.session_state["company_info_save_success"]
-# Show message after delete (persists across rerun)
+# Show message after delete and reset selectbox (before ci_select widget is created)
 if st.session_state.get("company_info_delete_success"):
     st.error("Row Deleted Successfully.")
+    st.session_state["ci_select"] = "— Select a company —"
     del st.session_state["company_info_delete_success"]
 
 df = get_cached_companies()
@@ -134,7 +135,6 @@ else:
                 delete_company(chosen_id)
                 clear_companies_cache()
                 st.session_state["company_info_delete_success"] = True
-                st.session_state["ci_select"] = "— Select a company —"
                 st.rerun()
         else:
             st.info("Select a company from the list to view and edit its information.")
